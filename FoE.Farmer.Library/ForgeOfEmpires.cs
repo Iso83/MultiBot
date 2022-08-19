@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace FoE.Farmer.Library
+﻿namespace FoE.Farmer.Library
 {
     public static class ForgeOfEmpires
     {

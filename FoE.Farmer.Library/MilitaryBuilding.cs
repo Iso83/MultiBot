@@ -1,8 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Runtime.Remoting.Messaging;
-using System.Text;
 using System.Threading.Tasks;
 using Newtonsoft.Json.Linq;
 
@@ -102,14 +100,22 @@ namespace FoE.Farmer.Library
         public static UnitSlot Parse(JToken j)
         {
             var us = new UnitSlot();
-            us.IsUnlocked = j["unlocked"].ToObject<bool>();
-            us.IsUnlockable = j["is_unlockable"].ToObject<bool>();
+            if(j.Contains("unlocked"))
+                us.IsUnlocked = j["unlocked"].ToObject<bool>();
+            else
+                us.IsUnlocked = false;
+
+            if (j.Contains("is_unlockable"))
+                us.IsUnlockable = j["is_unlockable"].ToObject<bool>();
+            else
+                us.IsUnlockable = false;
+
             if (j["nr"] != null) us.Order = j["nr"].ToObject<int>();
             us.UnitId = j["unit_id"].ToObject<int>();
 
             if (!us.IsUnlocked && us.IsUnlockable)
             {
-                us.IsUnlockable = j["unlock_costs"]["premium"] == null;
+                us.IsUnlockable = j["unlockCosts"]["premium"] == null;
             }
 
             return us;
@@ -121,7 +127,5 @@ namespace FoE.Farmer.Library
             await Payloads.CityProductionService.UnlockSlot(this).Send();
             IsUnlocked = true;
         }
-
-
     }
 }

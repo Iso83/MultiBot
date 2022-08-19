@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Threading.Tasks;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
@@ -33,7 +29,6 @@ namespace FoE.Farmer.Library
             j["requestData"] = new JArray(RequestData);
             j["requestId"] = RequestId;
             j["requestMethod"] = RequestMethod;
-            j["voClassName"] = ClassName;
             j["__class__"] = ClassName;
 
             return j;

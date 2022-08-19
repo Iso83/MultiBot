@@ -1,15 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Newtonsoft.Json.Linq;
-
-namespace FoE.Farmer.Library.Payloads
+﻿namespace FoE.Farmer.Library.Payloads
 {
     public class TreasureHuntService : Payload
     {
-        private const string ClassName = "TreasureHuntService";
+        private const string ClassName = "HiddenRewardService";
 
         /// <summary>
         /// Nacte informace o honbe za pokladem
@@ -33,9 +26,8 @@ namespace FoE.Farmer.Library.Payloads
             return new Payload
             {
                 RequestClass = ClassName,
-                RequestMethod = "collectTreasure"
+                RequestMethod = "collectReward"
             };
         }
-        
     }
 }

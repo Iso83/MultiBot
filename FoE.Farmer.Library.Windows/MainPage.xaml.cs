@@ -5,15 +5,12 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
-using System.Net.Cache;
 using System.Windows;
 using System.Windows.Controls;
 using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
-using System.Windows.Documents;
-using System.Windows.Media;
 using System.Windows.Threading;
 using CefSharp;
 using FoE.Farmer.Library.Windows.Events;
@@ -35,7 +32,6 @@ namespace FoE.Farmer.Library.Windows
     {
         public static Config Config = new Config("FoE.Config.xml");
         private static ChromiumWebBrowser Browser;
-        //private static CefSharp.Wpf.ChromiumWebBrowser otherBrowser;
         private static bool CookieLoaded = false;
         private static Dictionary<string, Payload> payloads = new Dictionary<string, Payload>();
         private static bool ConfigLoaded = false;
@@ -68,7 +64,7 @@ namespace FoE.Farmer.Library.Windows
 
             LoadConfig();
 
-            LoadOtherResourcesHtml();
+            LoadViewPlayerResourcesHtml();
 
             InitBrowser();
 
@@ -134,7 +130,7 @@ namespace FoE.Farmer.Library.Windows
                             //case "strategy_points": ForgePointsBox.Dispatcher.Invoke(() => ForgePointsBox.Text = value.Item2.ToString(CultureInfo.CurrentUICulture)); break;
                             //case "medals": Medals.Dispatcher.Invoke(() => Medals.Text = value.Item2.ToString(CultureInfo.CurrentUICulture)); break;
                             default:
-                                otherBrowser.ExecuteScriptAsync("updateItem", value.Item1, value.Item2);
+                                viewPlayerResources.ExecuteScriptAsync("updateItem", value.Item1, value.Item2);
                                 break;
                         }
                     }
@@ -149,6 +145,7 @@ namespace FoE.Farmer.Library.Windows
 
         private void InitSettingBrowser()
         {
+
 #if UI_BROWSER
             Cef.EnableHighDPISupport();
 #endif
@@ -159,48 +156,25 @@ namespace FoE.Farmer.Library.Windows
             settings.CachePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "MiCHALosoft\\FoFBot\\Cache");//@"C:\Temp\Cache";
             settings.UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/57.0.3071.115 Safari/537.36";
 
-            if (settings.CefCommandLineArgs.ContainsKey("enable-system-flash"))
-            {
-                settings.CefCommandLineArgs["enable-system-flash"] = "1";
-            }
-            else
-            {
-                settings.CefCommandLineArgs.Add("enable-system-flash", "1");
-            }
-
-            settings.CefCommandLineArgs.Add("enable-npapi", "1");
-            //settings.CefCommandLineArgs.Add("ppapi-flash-version", @"26.0.0.131");
-            //settings.CefCommandLineArgs.Add("ppapi-flash-path", @"C:\Temp\pepflashplayer64_26_0_0_131.dll");
             settings.IgnoreCertificateErrors = true;
-            settings.RegisterScheme(new CefCustomScheme
-            {
-                SchemeName = FoFSchemeHandlerFactory.SchemeName,
-                SchemeHandlerFactory = new FoFSchemeHandlerFactory()
-            });
 
             if (!Cef.IsInitialized)
                 if (!Cef.Initialize(settings))
                     throw new Exception();
         }
 
-        private void InitOtherBrowser()
+        private void Init_ViewPlayerRes()
         {
             if (IsOtherBrowserInit) return;
             IsOtherBrowserInit = true;
-            //otherBrowser = new CefSharp.Wpf.ChromiumWebBrowser();
-            otherBrowser.WebBrowser = otherBrowser;
-            //otherBrowser.Address = new Uri("http://api.michalosoft.cz/ResourceService.html").AbsoluteUri;
-            otherBrowser.Address = new Uri(Path.Combine(TempFolder, "OtherResources.html")).AbsoluteUri;
+            viewPlayerResources.WebBrowser = viewPlayerResources;
+            viewPlayerResources.Address = new Uri(Path.Combine(TempFolder, "OtherResources.html")).AbsoluteUri;
+            
+            viewPlayerResources.Width = double.NaN;
+            viewPlayerResources.Height = double.NaN;
 
-            otherBrowser.BrowserSettings.DefaultEncoding = "UTF-8";
-            otherBrowser.BrowserSettings.FileAccessFromFileUrls = CefState.Enabled;
-            otherBrowser.BrowserSettings.WindowlessFrameRate = 30;
-            //otherBrowser.Margin = new Thickness(10, 113, 10.4, 10.4);
-            otherBrowser.Width = double.NaN;
-            otherBrowser.Height = double.NaN;
-
-            ForegroundGrid.Children.Remove(otherBrowser);
-            ResourceInfoGrid.Children.Add(otherBrowser);
+            ForegroundGrid.Children.Remove(viewPlayerResources);
+            ResourceInfoGrid.Children.Add(viewPlayerResources);
         }
 
         private void InitBrowser()
@@ -210,34 +184,22 @@ namespace FoE.Farmer.Library.Windows
             Browser.WebBrowser = Browser;
             Browser.Address = new Uri($"https://{Requests.Domain}/").AbsoluteUri;
 #else
-            Browser = new ChromiumWebBrowser(new Uri($"https://{Requests.Domain}/").AbsoluteUri);
+            Browser = new ChromiumWebBrowser(new Uri($"https://{Requests.Domain}/").AbsoluteUri, null, null, false);
 #endif
-            ////otherBrowser = new CefSharp.Wpf.ChromiumWebBrowser();
-            //otherBrowser.WebBrowser = otherBrowser;
-            ////otherBrowser.Address = new Uri("http://api.michalosoft.cz/ResourceService.html").AbsoluteUri;
-            //otherBrowser.Address = new Uri(Path.Combine(TempFolder, "OtherResources.html")).AbsoluteUri;
 
-            //otherBrowser.BrowserSettings.DefaultEncoding = "UTF-8";
-            //otherBrowser.BrowserSettings.FileAccessFromFileUrls = CefState.Enabled;
-            //otherBrowser.BrowserSettings.WindowlessFrameRate = 30;
-            //otherBrowser.Margin = new Thickness(10, 113, 10.4, 10.4);
-            //otherBrowser.Width = double.NaN;
-            //otherBrowser.Height = double.NaN;
+            Browser.JavascriptObjectRepository.Settings.LegacyBindingEnabled = true;
+            Browser.JavascriptObjectRepository.Register(AP._f("responseManager"), new RequestObject(), isAsync: true, options: BindingOptions.DefaultBinder);
 
-            //ResourceInfoGrid.Children.Add(otherBrowser);
-
-            Browser.RegisterAsyncJsObject(AP._f("responseManager"), new RequestObject());
+#if UI_BROWSER
             Browser.BrowserSettings.DefaultEncoding = "UTF-8";
-            Browser.BrowserSettings.FileAccessFromFileUrls = CefState.Enabled;
+            //Browser.BrowserSettings.FileAccessFromFileUrls = CefState.Enabled;
             Browser.BrowserSettings.WindowlessFrameRate = 30;
+#else
+            Browser.CreateBrowserAsync();
+#endif
 
             Browser.RequestHandler = new RequestHandler();
-            //Browser.IsBrowserInitializedChanged += (sender, args) =>
-            //{
-            //    if (Browser.IsBrowserInitialized)
-            //    {
-            //    }
-            //};
+            
             Browser.FrameLoadEnd += (sender, args) =>
             {
                 Dispatcher.Invoke(() =>
@@ -247,10 +209,7 @@ namespace FoE.Farmer.Library.Windows
                     if (UserName.Text.Length == 0 || Password.Password.Length == 0) return;
                     LoadScripts();
                 });
-
-
             };
-            //LoadScripts();
 
 #if UI_BROWSER
             BrowserGrid.Children.Add(Browser);
@@ -283,15 +242,10 @@ namespace FoE.Farmer.Library.Windows
 
                 Browser.ExecuteScriptAsync(result.ToString());
             }
-
-            //Browser.ExecuteScriptAsync()
-
         }
 
-        private void LoadOtherResourcesHtml()
+        private void LoadViewPlayerResourcesHtml()
         {
-            //otherBrowser.Load("http://api.michalosoft.cz/ResourceService.html");
-            //return;
             var assembly = Assembly.GetExecutingAssembly();
             const string resourceName = "FoE.Farmer.Library.Windows.External.OtherResources.html";
 
@@ -300,7 +254,6 @@ namespace FoE.Farmer.Library.Windows
             {
                 var result = reader.ReadToEnd();
                 File.WriteAllText(Path.Combine(TempFolder, "OtherResources.html"), result);
-                //otherBrowser.LoadHtml(result, "http://www.example.com/");
             }
         }
 
@@ -309,36 +262,44 @@ namespace FoE.Farmer.Library.Windows
             Dispatcher.Invoke(() =>
             {
                 CookieLoaded = false;
-                //Browser.Address = new Uri("https://cz.forgeofempires.com/").AbsoluteUri;
                 Browser.Load(new Uri($"https://{Requests.Domain}/").AbsoluteUri);
-
-                //AutoStart = true;
             });
         }
 
-        public static void ShowCookies()
+        public static async Task ShowCookiesAsync()
         {
             if (CookieLoaded) return;
             CookieLoaded = true;
-            var visitor = new CookieManager();
-            if (Cef.GetGlobalCookieManager().VisitAllCookies(visitor))
-                visitor.WaitForAllCookies();
-            foreach (var nameValue in visitor.NamesValues)
+
+            var cookieManager = Cef.GetGlobalCookieManager();
+
+            var tCookies = cookieManager.VisitAllCookiesAsync();
+            await tCookies.ContinueWith(t =>
             {
-                switch (nameValue.Item1)
+                if (t.Status == TaskStatus.RanToCompletion)
                 {
-                    case "metricsUvId": Requests.MetricsUvId = nameValue.Item2; break;
-                    case "sid": Requests.SID = nameValue.Item2; break;
-                    case "_ga": Requests._GA = nameValue.Item2; break;
-                    case "_gid": Requests._GID = nameValue.Item2; break;
-                    case "startup_microtime": Requests.StartupMicrotime = nameValue.Item2; break;
-                    case "ig_conv_last_site": Requests.IgLastSite = nameValue.Item2; break;
+                    var cookies = t.Result;
+
+                    foreach (var cookie in cookies)
+                    {
+                        switch (cookie.Name)
+                        {
+                            case "metricsUvId": Requests.MetricsUvId = cookie.Value; break;
+                            case "sid": Requests.SID = cookie.Value; break;
+                            case "_ga": Requests._GA = cookie.Value; break;
+                            case "_gid": Requests._GID = cookie.Value; break;
+                            case "startup_microtime": Requests.StartupMicrotime = cookie.Value; break;
+                            case "ig_conv_last_site": Requests.IgLastSite = cookie.Value; break;
+                        }
+                    }
                 }
-                if (nameValue.Item1 == "sid")
+                else
                 {
-                    Requests.SID = nameValue.Item2;
+                    //"No Cookies found"
                 }
-            }
+            });
+
+
             LoadRequestString();
 
             // after relogin must start timer
@@ -350,7 +311,7 @@ namespace FoE.Farmer.Library.Windows
 
             if (AutoStart && !IsReloginRunning)
             {
-                Task.Delay(2000).ContinueWith((t) =>
+                await Task.Delay(2000).ContinueWith((t) =>
                 {
                     SendRequest(Payloads.StartupService.GetData());
                     Manager.Log("Success login. (StartupService)");
@@ -363,7 +324,6 @@ namespace FoE.Farmer.Library.Windows
 
         private static void LoadRequestString()
         {
-
             var FncSend = "function "+ AP._f("sendRequest") + "(data, signature){return new Promise((r, c) => {$.ajax({type: 'POST',url: '/game/json?h=" + Requests.UserKey + "', data: data, contentType: 'application/json', dataType: 'json', beforeSend: (xhr) => {" +
                           "xhr.setRequestHeader('Signature', signature);" +
                           $"xhr.setRequestHeader('Client-Identification', '{Requests.TemplateRequestHeader["Client-Identification"]}');" +
@@ -383,7 +343,6 @@ namespace FoE.Farmer.Library.Windows
 
             payloads.Add(signature, payload);
             await Browser.EvaluateScriptAsync(script);
-
         }
 
         private void UserInfoChange_OnTextChanged(object sender, TextChangedEventArgs e)
@@ -409,7 +368,7 @@ namespace FoE.Farmer.Library.Windows
 
         private void StartStopBtn_Click(object sender, RoutedEventArgs e)
         {
-            InitOtherBrowser();
+            Init_ViewPlayerRes();
 
             if (ForgeOfEmpires.Manager.IsStarted)
             {
@@ -418,7 +377,8 @@ namespace FoE.Farmer.Library.Windows
             }
             else
             {
-                if (ForgeOfEmpires.Manager.IsStartupServicesLoad) ForgeOfEmpires.Manager.Start();
+                if (ForgeOfEmpires.Manager.IsStartupServicesLoad) 
+                    ForgeOfEmpires.Manager.Start();
                 else
                 {
                     if (!CookieLoaded)
@@ -437,17 +397,20 @@ namespace FoE.Farmer.Library.Windows
             }
         }
 
-        private void ButtonBase_OnClick(object sender, RoutedEventArgs e)
+        private void DevToolsBnt_OnClick(object sender, RoutedEventArgs e)
         {
             if (Browser.IsBrowserInitialized) Browser.ShowDevTools();
         }
+        private void DevToolBnt_ViewPlayerRes_OnClick(object sender, RoutedEventArgs e) 
+        {       
+            if (viewPlayerResources.IsBrowserInitialized) viewPlayerResources.ShowDevTools();        
+        }
 
-        private void ButtonBase1_OnClick(object sender, RoutedEventArgs e)
+        private void ReloadBnt_OnClick(object sender, RoutedEventArgs e)
         {
             AutoStart = ForgeOfEmpires.Manager.IsStarted;
 
             CookieLoaded = false;
-            //Browser.Address = new Uri("https://cz.forgeofempires.com/").AbsoluteUri;
             Browser.Load(new Uri($"https://{Requests.Domain}/").AbsoluteUri);
         }
 
@@ -461,9 +424,7 @@ namespace FoE.Farmer.Library.Windows
             }
 
             if (!IsScriptLoaded && Password.Password.Length > 0 && UserName.Text.Trim().Length > 0 && FrameLoaded)
-            {
                 LoadScripts();
-            }
         }
 
         private void UpdateUserInterval()
@@ -475,19 +436,13 @@ namespace FoE.Farmer.Library.Windows
             var residentalTimer = ConfigGrid.Children.OfType<RadioButton>().Where(item => item.GroupName == "ResidentalTimer").FirstOrDefault(r => r.IsChecked.Value)?.Tag.ToString();
 
             if (!Enum.TryParse(goodsTimer, false, out TimeIntervalGoods goodsEnum))
-            {
                 goodsEnum = TimeIntervalGoods.EightHours;
-            }
 
             if (!Enum.TryParse(suppliesTimer, false, out TimeIntervalSupplies suppliesEnum))
-            {
                 suppliesEnum = TimeIntervalSupplies.EightHours;
-            }
 
             if (!Enum.TryParse(residentalTimer, false, out TimeIntervalSupplies residentalEnum))
-            {
                 residentalEnum = TimeIntervalSupplies.EightHours;
-            }
 
             ForgeOfEmpires.Manager.UserIntervalGoods = goodsEnum;
             ForgeOfEmpires.Manager.UserIntervalSupplies = suppliesEnum;
@@ -510,7 +465,7 @@ namespace FoE.Farmer.Library.Windows
                 UserName.Text = pwd;
             }
 
-            pwd = Config.GetValue("WorldName");
+            pwd = Config.GetValue("WorldNameFOE"); // TODO: Config.GetValue['WorldName'] is empty on load ... lib_MiCHALosoft.Config 
             if (!string.IsNullOrEmpty(pwd))
             {
                 Requests.WorldName = pwd;
@@ -523,7 +478,7 @@ namespace FoE.Farmer.Library.Windows
                 Requests.Domain = pwd;
                 Domain.Text = pwd;
             }
-            
+
 
             var val = Config.GetValue("GoodsTimer");
             if (!string.IsNullOrEmpty(val))
@@ -571,7 +526,7 @@ namespace FoE.Farmer.Library.Windows
             if (WorldName.Text != null)
             {
                 Requests.WorldName = WorldName.Text.Trim();
-                Config.SetValue("WorldName", Requests.WorldName);
+                Config.SetValue("WorldNameFOE", Requests.WorldName);
             }
             if (Password.Password.Length > 0)
             {
@@ -609,11 +564,6 @@ namespace FoE.Farmer.Library.Windows
             UpdateUserInterval();
         }
 
-        private void AutoLoginCheck_OnClick(object sender, RoutedEventArgs e)
-        {
-
-        }
-
         private string TavernMinOcLastValidText = "75";
         private void TavernMinOccupation_OnTextChanged(object sender, TextChangedEventArgs e)
         {
@@ -630,14 +580,6 @@ namespace FoE.Farmer.Library.Windows
             {
                 TavernMinOccupation.Text = TavernMinOcLastValidText;
                 TavernMinOccupation.SelectAll();
-            }
-        }
-
-        private void DevToolButtonInner_OnClick(object sender, RoutedEventArgs e)
-        {
-            if (otherBrowser.IsBrowserInitialized)
-            {
-                otherBrowser.ShowDevTools();
             }
         }
     }

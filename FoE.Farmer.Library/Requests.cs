@@ -1,20 +1,12 @@
-﻿using System;
+﻿using FoE.Farmer.Library.Events;
+using Newtonsoft.Json.Linq;
+using System;
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.IO;
-using System.Linq;
 using System.Net;
-using System.Net.Cache;
 using System.Net.Http;
 using System.Security.Cryptography;
 using System.Text;
-using System.Threading.Tasks;
 using System.Timers;
-using Flurl;
-using Flurl.Http;
-using FoE.Farmer.Library.Events;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 
 namespace FoE.Farmer.Library
 {
@@ -30,10 +22,10 @@ namespace FoE.Farmer.Library
         public const string BaseAddress = "{0}.forgeofempires.com";
         public const string AddressTemplate = "https://{0}/game/json?h={1}";
         public static readonly HttpClient Client = new HttpClient();
-        public const string Secret = "a9etc+h5UrJ+3Ec5NoMh3eFLygCrpdTBP2L3b3dMZtAbOiyYT7Tf9xX8cz1ddLR6FpuVurkvA9A/7Wsx1SHClA==";
-        public static string Timestamp = "1518000888";
+        public const string Secret = "G3pXENczVOKHVX1rgFMz4M8P7cu992SQ3gIStXl2PcVh7MtxInYWmZ8SZ2OwAjjKhQAFq/pxMrqgcAc3R+iDTg==";
+        //public static string Timestamp = "1518000888"; // flash
 
-        private const string GameVersion = "1.119";
+        private const string GameVersion = "1.235";
 
         public static Dictionary<string, string> TemplateRequestHeader { get; set; } = new Dictionary<string, string>();
         //nms10266@uzrip.com
@@ -58,11 +50,11 @@ namespace FoE.Farmer.Library
         {
             var random = new Random();
             requestSendTimer.Interval = random.Next(400, 600);
-            requestSendTimer.Elapsed += (e,s) => SendPayload();
+            requestSendTimer.Elapsed += (e, s) => SendPayload();
             //requestSendTimer.Start();
         }
 
-        public void AddPayload(Payload payload, Action<JObject> callback = null) 
+        public void AddPayload(Payload payload, Action<JObject> callback = null)
         {
             payloads.Enqueue((payload, callback));
             if (payloads.Count == 1) requestSendTimer.Start();
@@ -77,8 +69,8 @@ namespace FoE.Farmer.Library
             var item = payloads.Dequeue();
             if (item.Item1.TaskSource.Task.IsCanceled) return;
 
-            
-            PayloadSendRequest?.Invoke(this, new PayloadRequestEventArgs {Payload = item.Item1});
+
+            PayloadSendRequest?.Invoke(this, new PayloadRequestEventArgs { Payload = item.Item1 });
         }
 
         public static string BuildSignature(string data)
@@ -101,132 +93,5 @@ namespace FoE.Farmer.Library
                 // make lowercase
                 .ToLower();
         }
-
-        private string SendRequest2(Payload data)
-        {
-            var jsonString = "[" + data + "]";
-            string response = null;
-
-            var wr = (HttpWebRequest)WebRequest.Create(RequestsAddress);
-
-            wr.AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate;
-            wr.Method = "POST";
-            wr.ContentType = "application/json";
-            wr.KeepAlive = true;
-            wr.Accept = "*/*";
-            wr.Host = Domain;
-            wr.CachePolicy = new RequestCachePolicy(RequestCacheLevel.NoCacheNoStore);
-            wr.Referer = $"https://foecz.innogamescdn.com/swf/Preloader.swf?{Timestamp}/[[DYNAMIC]]/1";
-            wr.UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/59.0.3071.115 Safari/537.36";
-            wr.CookieContainer = new CookieContainer();
-            wr.CookieContainer.Add(GetCookie("metricsUvId", "98cf6fd3-5872-4080-bf40-934b90b70a71"));
-            wr.CookieContainer.Add(GetCookie("sid", SID));
-            wr.CookieContainer.Add(GetCookie("req_page_info", "game_v1"));
-            wr.CookieContainer.Add(GetCookie("start_page_type", "game"));
-            wr.CookieContainer.Add(GetCookie("start_page_version", "v1"));
-            wr.CookieContainer.Add(GetCookie("_ga", "GA1.2.1298412460.1491422581"));
-            wr.CookieContainer.Add(GetCookie("ig_conv_last_site", $"https://{Domain}/game/index"));
-
-
-            //wr.Headers["Connection"] = "keep-alive";
-            wr.Headers["Client-Identification"] = $"version={GameVersion}; requiredVersion={GameVersion}; platform=bro; platformVersion=web";
-            wr.Headers["Origin"] = "https://foecz.innogamescdn.com";
-            wr.Headers["X-Requested-With"] = "ShockwaveFlash/26.0.0.131";
-            wr.Headers["Signature"] = BuildSignature(jsonString);
-            //wr.Headers["User-Agent"] = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/59.0.3071.115 Safari/537.36";
-            //wr.Headers["Referer"] = $"https://foecz.innogamescdn.com/swf/Preloader.swf?{Timestamp}/[[DYNAMIC]]/1";
-            wr.Headers["Accept-Encoding"] = "gzip, deflate, br";
-            wr.Headers["Accept-Language"] = "cs-CZ,cs;q=0.8";
-            //wr.Headers["Cookie"] = $"metricsUvId=98cf6fd3-5872-4080-bf40-934b90b70a71; sid={SID}; req_page_info=game_v1; start_page_type=game; start_page_version=v1; _ga=GA1.2.1298412460.1491422581; ig_conv_last_site=https://{Domain}/game/index";
-
-            using (var s = wr.GetResponse().GetResponseStream())
-            {
-                using (var sr = new System.IO.StreamReader(s))
-                {
-                    response = sr.ReadToEnd();
-                }
-            }
-
-            return response;
-
-        }
-
-        private string SendRequest3(Payload data)
-        {
-            var jsonString = "[{\"requestData\":[],\"requestId\":0,\"requestMethod\":\"getData\",\"__class__\":\"ServerRequest\",\"requestClass\":\"StartupService\",\"voClassName\":\"ServerRequest\"}]";//"[" + data + "]";
-            string response = null;
-
-            //var wr = (HttpWebRequest)WebRequest.Create("http://requestb.in/rbpr4zrc");
-            var wr = (HttpWebRequest) WebRequest.Create(TemplateRequestHeader["Uri"]);
-            var uri = new Uri(TemplateRequestHeader["Uri"]);
-            
-
-            wr.AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate;
-            wr.Method = "POST";
-            wr.ContentType = TemplateRequestHeader["Content-Type"];
-            wr.KeepAlive = true;
-            wr.Accept = TemplateRequestHeader["Accept"];
-            wr.Host = uri.Host;
-            wr.CachePolicy = new RequestCachePolicy(RequestCacheLevel.NoCacheNoStore);
-            wr.Referer = TemplateRequestHeader["Referrer"];
-            //wr.ContentLength = jsonString.Length;
-            wr.UserAgent = TemplateRequestHeader["User-Agent"];//"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/59.0.3071.115 Safari/537.36";
-            //wr.CookieContainer = new CookieContainer();
-            //wr.CookieContainer.Add(GetCookie("metricsUvId", MetricsUvId));
-            //wr.CookieContainer.Add(GetCookie("sid", SID));
-            //wr.CookieContainer.Add(GetCookie("req_page_info", "game_v1"));
-            //wr.CookieContainer.Add(GetCookie("start_page_type", "game"));
-            //wr.CookieContainer.Add(GetCookie("start_page_version", "v1"));
-            //wr.CookieContainer.Add(GetCookie("_ga", _GA));
-            //wr.CookieContainer.Add(GetCookie("_gid", _GID));
-            //wr.CookieContainer.Add(GetCookie("startup_microtime", StartupMicrotime));
-            //wr.CookieContainer.Add(GetCookie("ig_conv_last_site", IgLastSite));
-
-
-            //wr.Headers["Connection"] = "keep-alive";
-            wr.Headers["Client-Identification"] = TemplateRequestHeader["Client-Identification"];//$"version={GameVersion}; requiredVersion={GameVersion}; platform=bro; platformVersion=web";
-            wr.Headers["Origin"] = TemplateRequestHeader["Origin"];
-            wr.Headers["X-Requested-With"] = TemplateRequestHeader["X-Requested-With"];
-            wr.Headers["Signature"] = BuildSignature(jsonString);
-            //wr.Headers["User-Agent"] = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/59.0.3071.115 Safari/537.36";
-            //wr.Headers["Referer"] = $"https://foecz.innogamescdn.com/swf/Preloader.swf?{Timestamp}/[[DYNAMIC]]/1";
-            wr.Headers["DNT"] = "1";
-            wr.Headers["Accept-Encoding"] = "gzip, deflate, br";
-            wr.Headers["Accept-Language"] = "cs,en-US;q=0.7,en;q=0.3";
-            wr.Headers["Cookie"] = $"metricsUvId={MetricsUvId}; sid={SID}; req_page_info=game_v1; start_page_type=game; start_page_version=v1; _ga={_GA}; ig_conv_last_site={IgLastSite}; startup_microtime={StartupMicrotime}; _gid={_GID}";
-
-            using (var s = wr.GetResponse().GetResponseStream())
-            {
-                using (var sr = new System.IO.StreamReader(s))
-                {
-                    response = sr.ReadToEnd();
-                }
-            }
-
-            using (var sw = new StreamWriter("_rq_data.txt", true))
-            {
-                sw.WriteLine($"{wr.Method} {wr.Address}");
-                foreach (var key in wr.Headers.AllKeys)
-                {
-                    sw.WriteLine($"{key}: {wr.Headers[key]}");
-                }
-                sw.WriteLine();
-                sw.WriteLine($"RequestData: {jsonString}");
-                sw.WriteLine();
-                sw.WriteLine($"ResponseData: {response}");
-                sw.WriteLine();
-                sw.WriteLine();
-
-            }
-
-            return response;
-
-        }
-
-        private static Cookie GetCookie(string name, string value)
-        {
-            return new Cookie(name, value, "/", Domain);
-        }
-
     }
 }

@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Linq;
 using Newtonsoft.Json.Linq;
 
 namespace FoE.Farmer.Library.Services
@@ -17,7 +13,7 @@ namespace FoE.Farmer.Library.Services
         public static void Parse(JObject j)
         {
             ParseUserData(j["user_data"]);
-            ParseSocialBar(j["socialbar_list"]);
+            //ParseSocialBar(j["getSocialList"]); // TODO: not in payload-StartupService
             ParseCityMap(j["city_map"]);
             ParseUnitSlots(j["unit_slots"]);
         }
@@ -47,7 +43,6 @@ namespace FoE.Farmer.Library.Services
 
                 ForgeOfEmpires.Manager.Players.Add(p);
             }
-            
         }
 
         private static void ParseCityMap(JToken j)

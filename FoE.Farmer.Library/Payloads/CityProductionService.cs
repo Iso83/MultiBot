@@ -1,9 +1,5 @@
 ﻿using Newtonsoft.Json.Linq;
-using System;
-using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace FoE.Farmer.Library.Payloads
 {
@@ -42,6 +38,5 @@ namespace FoE.Farmer.Library.Payloads
                 RequestData = new JArray(slot.Parent.ID, slot.Order, 0)
             };
         }
-
     }
 }

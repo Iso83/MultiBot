@@ -1,7 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 using Newtonsoft.Json.Linq;
 
@@ -10,7 +7,6 @@ namespace FoE.Farmer.Library.Services
     public class TreasureHuntService
     {
         public static DateTime NextCheckTime { get; set; } = DateTime.MinValue;
-
 
         public static async void CheckTreasureHunt()
         {
@@ -21,45 +17,45 @@ namespace FoE.Farmer.Library.Services
             var timeService = Helper.GetObjectByClass(plainData, "TimeService", "updateTime");
             var curServerTime = timeService["responseData"]["time"].ToObject<long>();
 
-            var data = Helper.GetObjectByClass(plainData, "TreasureHuntService", "getOverview");
-            var chests = data["responseData"]["treasure_chests"] as JArray;
+            var data = Helper.GetObjectByClass(plainData, "HiddenRewardService", "getOverview");
+
+        changedChestList:
+            var chests = data["responseData"]["hiddenRewards"] as JArray;
             if (chests == null) return;
 
             for (var i = 0; i < chests.Count; i++)
             {
                 var chest = chests[i];
-                if (chest["state"]["__class__"].ToString() == "TreasureChestCollectable")
+                if (chest["__class__"].ToString() == "HiddenReward")
                 {
-                    // collect
-                    if (i + 1 >= chests.Count)
+                    long
+                        showingTime = chest["startTime"].ToObject<long>(),
+                        expireTime = chest["expireTime"].ToObject<long>();
+
+                    if (showingTime < curServerTime && expireTime >= curServerTime)
                     {
-                        NextCheckTime = DateTime.Now + Helper.GetRandomMinutes();
-                        Manager.Log("- Treasure hunt - collected rewards, Complete treasure hunt, next start in: " + NextCheckTime.ToLocalTime());
+                        if (TimeSpan.FromTicks(curServerTime - showingTime) < Helper.GetRandomMinutes(2, 8)) // collect
+                        {
+                            var treasurePayLoad = Payloads.TreasureHuntService.CollectTreasure();
+                            treasurePayLoad.RequestData = new JArray(chest["hiddenRewardId"]);
+                            var treasureResponse = await treasurePayLoad.Send();
+
+                            Manager.Log($"- Treasure hunt - collected reward({chest["type"].ToObject<string>()})");
+                            System.Threading.Thread.Sleep(Helper.GetRandomSeconds(10, 25).Milliseconds);
+
+                            var newData = Helper.GetObjectByClass(treasureResponse, "HiddenRewardService", "getOverview");
+                            if (newData != null)
+                            {
+                                data = newData;
+                                goto changedChestList;
+                            }
+                        }
                     }
-                    else
-                    {
-                        var nextTravelTime = chest["travel_time"].ToObject<int>();
-                        NextCheckTime = DateTime.Now + TimeSpan.FromSeconds(nextTravelTime) + Helper.GetRandomMinutes(2, 8);
-                        Manager.Log($"- Treasure hunt - collected rewards, Traveling to next (chest no. {i+2}): {NextCheckTime.ToLocalTime()}");
-                    }
-                    await Payloads.TreasureHuntService.CollectTreasure().Send();
-                    return;
-                }
-                if (chest["state"]["__class__"].ToString() == "TreasureChestTraveling")
-                {
-                    var arrival_time = chest["state"]["arrival_time"].ToObject<long>();
-                    var aTime = Math.Abs(arrival_time - curServerTime);
-                    NextCheckTime = DateTime.Now + TimeSpan.FromSeconds(aTime) + Helper.GetRandomMinutes(2, 8);
-                    Manager.Log($"- Treasure hunt - traveling to chest {i+1}, next check time " + NextCheckTime.ToLocalTime());
-                    return;
-                }
-                if (chest["state"]["__class__"].ToString() == "TreasureChestClosed")
-                {
-                    continue;
                 }
             }
-       
 
+            NextCheckTime = DateTime.Now + Helper.GetRandomMinutes();
+            Manager.Log("- Treasure hunt - Complete treasure hunt, next start: " + NextCheckTime.ToLocalTime());
         }
     }
 }

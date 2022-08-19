@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Diagnostics;
 using FoE.Farmer.Library.Windows.Events;
 
 namespace FoE.Farmer.Library.Windows
@@ -23,6 +18,5 @@ namespace FoE.Farmer.Library.Windows
         {
             DataRecived?.Invoke(this, new DataRecivedEventArgs { Data = data, IsError = RecivedDataType.Error});
         }
-        
     }
 }

@@ -4,12 +4,8 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Net;
-using System.Runtime.Remoting.Messaging;
-using System.Text;
 using System.Threading.Tasks;
 using System.Timers;
-using Flurl.Util;
 using FoE.Farmer.Library.Events;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -188,8 +184,8 @@ namespace FoE.Farmer.Library
 
         public void RunCheckTimer()
         {
+            TavernAndAidService(); // TODO: Check if taverne exist in foe-world (beginner) ... _class:error response
             PickupBuildings();
-            TavernAndAidService();
 
             Services.TreasureHuntService.CheckTreasureHunt();
         }
@@ -203,7 +199,7 @@ namespace FoE.Farmer.Library
             {
                 if (building.Type == BuildType.Goods) building.Interval = (int)_userIntervalGoods;
                 if (building.Type == BuildType.Supplies) building.Interval = (int)_userIntervalSupplies;
-                if (building.Type == BuildType.Residential) building.Interval = 300; //(int)_userIntervalResidental;
+                if (building.Type == BuildType.Residential) building.Interval = (int)_userIntervalResidental;
             }
         }
 
@@ -233,12 +229,6 @@ namespace FoE.Farmer.Library
             _timer.Start();
             IsStarted = true;
         }
-
-        //public void Start()
-        //{
-        //    if (!IsStartupServicesLoad)
-        //}
-
         public void Stop()
         {
             _timer.Stop();
@@ -253,6 +243,15 @@ namespace FoE.Farmer.Library
 
         public void ParseStringData(string data)
         {
+#if DumpJSONError
+            if (data.Contains("__class__\":\"Error"))
+            {
+                Stop();
+                File.WriteAllText($"dump_response_{DateTime.UtcNow.Ticks}.json", data);
+                Environment.Exit(-1);
+            }
+#endif
+
             var ja = JArray.Parse(data);
             var taverUnlocked = 0;
             var taverOccup = 0;
@@ -309,6 +308,44 @@ namespace FoE.Farmer.Library
                                         case "summer_tickets":
                                         case "spring_lanterns":
                                         case "stars":
+                                        case "wildlife_coins":
+                                        case "forge_bowl_footballs":
+                                        case "soccer_energy":
+                                        case "summer_doubloons":
+                                        case "summer_compass":
+                                        case "fall_ingredient_apples":
+                                        case "fall_ingredient_pumpkins":
+                                        case "fall_ingredient_chocolate":
+                                        case "fall_ingredient_cinnamon":
+                                        case "fall_ingredient_caramel":
+                                        case "winter_matches":
+                                        case "archeology_brush":
+                                        case "archeology_shovel":
+                                        case "archeology_dynamite":
+                                        case "archeology_scroll":
+                                        case "halloween_candle":
+                                        case "halloween_flashlight":
+                                        case "halloween_lantern":
+                                        case "halloween_ticket":
+                                        case "winter_reindeer":
+                                        case "st_patricks_pot_of_gold":
+                                        case "soccer_tournament_tickets":
+                                        case "pvp_arena_attempt":
+                                        case "archeology_gem_shard":
+                                        case "wildlife_pop_moves":
+                                        case "wildlife_tickets":
+                                        case "wildlife_booster_hammer":
+                                        case "wildlife_booster_color_changer":
+                                        case "wildlife_booster_color_destroyer":
+                                        case "halloween_joker_sticker":
+                                        case "winter_master_key_parts":
+                                        case "ages_paper_money":
+                                        case "ages_dice_golden":
+                                        case "hero_rations":
+                                        case "summer_piggy_bank":
+                                        case "castle_points":
+                                        case "total_population":
+                                        case "gems":
                                             break;
                                         default:
                                             res.Add((oneRes.Key, oneRes.Value.ToObject<int>()));
@@ -316,7 +353,7 @@ namespace FoE.Farmer.Library
                                     }
                                 }
 
-                                ResourcesUpdate?.Invoke(this, new ResourceUpdateEventArgs {Values = res.ToArray()});
+                                ResourcesUpdate?.Invoke(this, new ResourceUpdateEventArgs { Values = res.ToArray() });
                             }
                         }
                         break;
@@ -327,6 +364,7 @@ namespace FoE.Farmer.Library
                         if (j["requestMethod"].ToString() == "getFriendsList")
                         {
                             var friends = j["responseData"] as JArray;
+                            if (friends == null) break;
 
                             var i = 0;
                             foreach (var friend in friends)
@@ -344,7 +382,7 @@ namespace FoE.Farmer.Library
                                 }
 
                             }
-                            Log("Freinds player load " + i, LogMessageType.Debug);
+                            Log("Friends player load " + i, LogMessageType.Debug);
                         }
                         // player and friend service
                         break;
@@ -364,6 +402,8 @@ namespace FoE.Farmer.Library
                         data_j = data_j["responseData"] as JObject;
 #endif
                         Services.StartupService.Parse(data_j);
+                        Manager.Log($"World: {Requests.WorldName}");
+
 #if DEBUG_STARTUP
                         Log("Succes load startup data");
                         return;
@@ -381,11 +421,6 @@ namespace FoE.Farmer.Library
         public static void Log(string text, LogMessageType type = LogMessageType.Info)
         {
             LogMessageSend?.Invoke(ForgeOfEmpires.Manager, new LoggingDataEventArgs { Message = text, Type = type });
-        }
-
-        public void ParseStartupData()
-        {
-
         }
     }
 

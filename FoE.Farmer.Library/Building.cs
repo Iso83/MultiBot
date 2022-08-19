@@ -1,10 +1,6 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
-using System.Windows;
 using Newtonsoft.Json.Linq;
 
 namespace FoE.Farmer.Library
@@ -81,7 +77,7 @@ namespace FoE.Farmer.Library
 
         public static Building LoadFromJSON(JObject j)
         {
-            if (j["__class__"].ToString() != "CityMapEntity") throw new ArgumentException("Input object has not building");
+            if (j["__class__"].ToString() != "CityMapEntity") return null;// throw new ArgumentException("Input object has not building");
 
             var b = new Building();
             switch (j["type"].ToString())
